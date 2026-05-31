@@ -80,6 +80,8 @@ Finally, the program will map original pixels to the generated palette and produ
 ### Project Overview
 This project implements an Image Color Quantization Tool in C++. The program reads a P3 PPM image, builds an Octree from RGB pixel data, generates a color palette, reduces the palette to a target number of colors, and outputs quantized PPM images.
 
+The final version completes the next steps mentioned in the prototype stage, including PPM image input, quantized image output, and performance comparison.
+
 The final implementation is in `src/main.cpp`. Earlier development versions are kept as references in `src/main_prototype.cpp` and `src/main_ppm_basic.cpp`.
 
 
