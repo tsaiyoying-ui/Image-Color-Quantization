@@ -88,14 +88,6 @@ Earlier development versions are kept as references:
 - `src/main_prototype.cpp`
 - `src/main_ppm_basic.cpp`
 
-### Source Code Note
-
-The final version for grading is `src/main.cpp`.
-
-The other source files are kept only as development history:
-- `src/main_prototype.cpp`: prototype version
-- `src/main_ppm_basic.cpp`: basic PPM input/output version
-
   
 ### How to Run
 Compile the program:
