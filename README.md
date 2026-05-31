@@ -76,10 +76,86 @@ Finally, the program will map original pixels to the generated palette and produ
 
 ## Final Report
 
-### 專案說明
-<!-- 完整描述你的專案做了什麼 -->
 
-### 使用方式
-<!-- 如何編譯、執行、使用你的程式 -->
+### Project Overview
+This project implements an Image Color Quantization Tool in C++. The program reads a P3 PPM image, builds an Octree from RGB pixel data, generates a color palette, reduces the palette to a target number of colors, and outputs quantized PPM images.
+
+The final implementation is in `src/main.cpp`. Earlier development versions are kept as references in `src/main_prototype.cpp` and `src/main_ppm_basic.cpp`.
+
+
+### How to Run
+Compile the program:
+
+```powershell
+g++ src/main.cpp -o quantizer
+```
+
+Run the program:
+
+```powershell
+.\quantizer.exe input.ppm output 8
+```
+
+Arguments:
+
+```text
+input.ppm    input P3 PPM image
+output       output folder
+8            target number of colors
+```
+
+Example commands:
+
+```powershell
+.\quantizer.exe input.ppm output 4
+.\quantizer.exe input.ppm output 8
+.\quantizer.exe input.ppm output 16
+```
+
+The quantized images will be generated in the `output/` folder.
+
+
+### Completed Features
+- Read and write P3 PPM image files
+- Build an Octree from RGB pixel data
+- Generate a color palette from Octree leaf nodes
+- Reduce the image to a target number of colors
+- Map each pixel to the nearest palette color
+- Compare two palette reduction algorithms
+- Output quantized images and performance statistics
+
+  
+### Algorithm Comparison and Performance Analysis
+The main data structure used in this project is an Octree. Each node has up to eight children, and each level uses one bit from the red, green, and blue channels to determine the child index. Leaf nodes store accumulated RGB values and pixel counts, which are used to generate average palette colors.
+
+This project compares two palette reduction algorithms:
+
+1. **Closest-Pair Merge**  
+   Repeatedly finds the two closest palette colors and merges them using weighted average.
+
+2. **Frequency Top-K**  
+   Sorts palette colors by pixel frequency and keeps the most frequent `K` colors.
+
+Experimental results:
+
+| Target Colors | Algorithm | Reduction Ratio | Average Color Error | Processing Time |
+|---:|---|---:|---:|---:|
+| 4 | Closest-Pair Merge | 90% | 89.5074 | 0.1761 ms |
+| 4 | Frequency Top-K | 90% | 182.966 | 0.0184 ms |
+| 8 | Closest-Pair Merge | 80% | 25.905 | 0.2804 ms |
+| 8 | Frequency Top-K | 80% | 139.198 | 0.027 ms |
+| 16 | Closest-Pair Merge | 60% | 9.06943 | 0.1438 ms |
+| 16 | Frequency Top-K | 60% | 66.213 | 0.0277 ms |
+
+The results show that Closest-Pair Merge produces lower average color error, which means it preserves color similarity better. However, it takes more processing time because it repeatedly searches for the closest pair of colors.
+
+Frequency Top-K is faster because it only selects the most frequent colors, but it produces higher average color error because frequent colors are not always the best representatives of the entire color space.
+
+
+### Conclusion
+This project demonstrates how the Octree data structure can be applied to image color quantization. By comparing two palette reduction algorithms, the project shows the trade-off between output quality and processing speed.
+
+Closest-Pair Merge provides better color quality, while Frequency Top-K provides faster execution.
+
 
 
