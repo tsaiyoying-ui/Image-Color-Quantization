@@ -1,10 +1,10 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <sstream>
 #include <cmath>
 #include <chrono>
 #include <algorithm>
-#include <string>
 using namespace std;
 
 // A simple structure to store one RGB pixel
@@ -28,20 +28,6 @@ struct Image {
     int height;
     int maxColorValue;
     vector<Pixel> pixels;
-};
-
-// A structure for storing algorithm experiment results
-struct ExperimentResult {
-    string algorithmName;
-    int targetColors;
-    int originalUniqueColors;
-    int originalPaletteSize;
-    int reducedPaletteSize;
-    int quantizedUniqueColors;
-    double colorReductionRatio;
-    double averageColorError;
-    double processingTimeMs;
-    string outputFilename;
 };
 
 // Octree node used to represent a region in RGB color space
@@ -229,7 +215,7 @@ bool writePPM(const string& filename, const Image& image) {
     file << image.width << " " << image.height << endl;
     file << image.maxColorValue << endl;
 
-    for (int i = 0; i < static_cast<int>(image.pixels.size()); i++) {
+    for (int i = 0; i < image.pixels.size(); i++) {
         file << image.pixels[i].r << " "
              << image.pixels[i].g << " "
              << image.pixels[i].b << " ";
@@ -261,12 +247,6 @@ int paletteDistanceSquared(const PaletteColor& a, const PaletteColor& b) {
     return dr * dr + dg * dg + db * db;
 }
 
-// Calculate actual RGB Euclidean distance between a pixel and a palette color
-double colorDistance(const Pixel& pixel, const PaletteColor& color) {
-    int squaredDistance = colorDistanceSquared(pixel, color);
-    return sqrt(static_cast<double>(squaredDistance));
-}
-
 // Merge two palette colors using weighted average
 PaletteColor mergeColors(const PaletteColor& a, const PaletteColor& b) {
     PaletteColor merged;
@@ -280,8 +260,8 @@ PaletteColor mergeColors(const PaletteColor& a, const PaletteColor& b) {
     return merged;
 }
 
-// Algorithm A: Reduce palette using closest-pair merging
-vector<PaletteColor> reducePaletteByClosestPairMerge(vector<PaletteColor> palette, int targetColors) {
+// Reduce palette to the target number of colors
+vector<PaletteColor> reducePalette(vector<PaletteColor> palette, int targetColors) {
     if (targetColors <= 0) {
         return palette;
     }
@@ -295,8 +275,8 @@ vector<PaletteColor> reducePaletteByClosestPairMerge(vector<PaletteColor> palett
         int bestJ = 1;
         int bestDistance = paletteDistanceSquared(palette[0], palette[1]);
 
-        for (int i = 0; i < static_cast<int>(palette.size()); i++) {
-            for (int j = i + 1; j < static_cast<int>(palette.size()); j++) {
+        for (int i = 0; i < palette.size(); i++) {
+            for (int j = i + 1; j < palette.size(); j++) {
                 int distance = paletteDistanceSquared(palette[i], palette[j]);
 
                 if (distance < bestDistance) {
@@ -316,29 +296,12 @@ vector<PaletteColor> reducePaletteByClosestPairMerge(vector<PaletteColor> palett
     return palette;
 }
 
-// Algorithm B: Reduce palette by selecting the most frequent colors
-vector<PaletteColor> reducePaletteByFrequencyTopK(vector<PaletteColor> palette, int targetColors) {
-    if (targetColors <= 0) {
-        return palette;
-    }
-
-    sort(palette.begin(), palette.end(), [](const PaletteColor& a, const PaletteColor& b) {
-        return a.pixelCount > b.pixelCount;
-    });
-
-    if (palette.size() > static_cast<size_t>(targetColors)) {
-        palette.resize(targetColors);
-    }
-
-    return palette;
-}
-
 // Find the nearest palette color for a pixel
 PaletteColor findNearestColor(const Pixel& pixel, const vector<PaletteColor>& palette) {
     int bestIndex = 0;
     int bestDistance = colorDistanceSquared(pixel, palette[0]);
 
-    for (int i = 1; i < static_cast<int>(palette.size()); i++) {
+    for (int i = 1; i < palette.size(); i++) {
         int distance = colorDistanceSquared(pixel, palette[i]);
 
         if (distance < bestDistance) {
@@ -389,33 +352,12 @@ int countUniqueColors(const vector<Pixel>& pixels) {
         }
     }
 
-    return static_cast<int>(uniqueColors.size());
-}
-
-// Calculate average RGB color error after quantization
-double calculateAverageColorError(const vector<Pixel>& originalPixels, const vector<Pixel>& quantizedPixels) {
-    if (originalPixels.empty() || originalPixels.size() != quantizedPixels.size()) {
-        return 0.0;
-    }
-
-    double totalError = 0.0;
-
-    for (int i = 0; i < static_cast<int>(originalPixels.size()); i++) {
-        PaletteColor quantizedColor;
-        quantizedColor.r = quantizedPixels[i].r;
-        quantizedColor.g = quantizedPixels[i].g;
-        quantizedColor.b = quantizedPixels[i].b;
-        quantizedColor.pixelCount = 1;
-
-        totalError += colorDistance(originalPixels[i], quantizedColor);
-    }
-
-    return totalError / originalPixels.size();
+    return uniqueColors.size();
 }
 
 // Print palette colors
 void printPalette(const vector<PaletteColor>& palette) {
-    for (int i = 0; i < static_cast<int>(palette.size()); i++) {
+    for (int i = 0; i < palette.size(); i++) {
         cout << i + 1 << ". RGB("
              << palette[i].r << ", "
              << palette[i].g << ", "
@@ -424,129 +366,21 @@ void printPalette(const vector<PaletteColor>& palette) {
     }
 }
 
-// Build an Octree from image pixels and return the original palette
-vector<PaletteColor> buildOriginalPalette(const vector<Pixel>& pixels, int& leafCount) {
-    Octree octree;
-
-    for (const Pixel& pixel : pixels) {
-        octree.insert(pixel);
-    }
-
-    leafCount = octree.getLeafCount();
-    return octree.getPalette();
-}
-
-// Run one algorithm experiment
-ExperimentResult runAlgorithmExperiment(
-    const Image& inputImage,
-    const vector<PaletteColor>& originalPalette,
-    int targetColors,
-    const string& algorithmName,
-    const string& outputFilename
-) {
-    auto start = chrono::high_resolution_clock::now();
-
-    vector<PaletteColor> reducedPalette;
-
-    if (algorithmName == "Closest-Pair Merge") {
-        reducedPalette = reducePaletteByClosestPairMerge(originalPalette, targetColors);
-    } else if (algorithmName == "Frequency Top-K") {
-        reducedPalette = reducePaletteByFrequencyTopK(originalPalette, targetColors);
-    } else {
-        reducedPalette = originalPalette;
-    }
-
-    vector<Pixel> quantizedPixels = quantizePixels(inputImage.pixels, reducedPalette);
-
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double, milli> elapsed = end - start;
-
-    Image outputImage;
-    outputImage.width = inputImage.width;
-    outputImage.height = inputImage.height;
-    outputImage.maxColorValue = inputImage.maxColorValue;
-    outputImage.pixels = quantizedPixels;
-
-    writePPM(outputFilename, outputImage);
-
-    int originalUniqueColors = countUniqueColors(inputImage.pixels);
-    int quantizedUniqueColors = countUniqueColors(quantizedPixels);
-
-    double reductionRatio = 0.0;
-    if (originalUniqueColors > 0) {
-        reductionRatio = 100.0 * (1.0 - static_cast<double>(quantizedUniqueColors) / originalUniqueColors);
-    }
-
-    ExperimentResult result;
-    result.algorithmName = algorithmName;
-    result.targetColors = targetColors;
-    result.originalUniqueColors = originalUniqueColors;
-    result.originalPaletteSize = static_cast<int>(originalPalette.size());
-    result.reducedPaletteSize = static_cast<int>(reducedPalette.size());
-    result.quantizedUniqueColors = quantizedUniqueColors;
-    result.colorReductionRatio = reductionRatio;
-    result.averageColorError = calculateAverageColorError(inputImage.pixels, quantizedPixels);
-    result.processingTimeMs = elapsed.count();
-    result.outputFilename = outputFilename;
-
-    cout << endl;
-    cout << "Algorithm: " << algorithmName << endl;
-    cout << "Output file: " << outputFilename << endl;
-    cout << "Reduced palette size: " << result.reducedPaletteSize << endl;
-    cout << "Quantized unique colors: " << result.quantizedUniqueColors << endl;
-    cout << "Color reduction ratio: " << result.colorReductionRatio << "%" << endl;
-    cout << "Average color error: " << result.averageColorError << endl;
-    cout << "Processing time: " << result.processingTimeMs << " ms" << endl;
-    cout << "Reduced Palette:" << endl;
-    printPalette(reducedPalette);
-
-    return result;
-}
-
-// Print a comparison table for two algorithm results
-void printComparisonTable(const ExperimentResult& a, const ExperimentResult& b) {
-    cout << endl;
-    cout << "===============================================" << endl;
-    cout << "Algorithm Comparison Summary" << endl;
-    cout << "===============================================" << endl;
-    cout << "Target colors: " << a.targetColors << endl;
-    cout << "Original unique colors: " << a.originalUniqueColors << endl;
-    cout << "Original palette size: " << a.originalPaletteSize << endl;
-    cout << endl;
-
-    cout << "1. " << a.algorithmName << endl;
-    cout << "   Reduced palette size: " << a.reducedPaletteSize << endl;
-    cout << "   Quantized unique colors: " << a.quantizedUniqueColors << endl;
-    cout << "   Color reduction ratio: " << a.colorReductionRatio << "%" << endl;
-    cout << "   Average color error: " << a.averageColorError << endl;
-    cout << "   Processing time: " << a.processingTimeMs << " ms" << endl;
-    cout << "   Output file: " << a.outputFilename << endl;
-    cout << endl;
-
-    cout << "2. " << b.algorithmName << endl;
-    cout << "   Reduced palette size: " << b.reducedPaletteSize << endl;
-    cout << "   Quantized unique colors: " << b.quantizedUniqueColors << endl;
-    cout << "   Color reduction ratio: " << b.colorReductionRatio << "%" << endl;
-    cout << "   Average color error: " << b.averageColorError << endl;
-    cout << "   Processing time: " << b.processingTimeMs << " ms" << endl;
-    cout << "   Output file: " << b.outputFilename << endl;
-}
-
 int main(int argc, char* argv[]) {
-    cout << "Image Color Quantization Tool - Algorithm Comparison Version" << endl;
-    cout << "-----------------------------------------------------------" << endl;
+    cout << "Image Color Quantization Tool - PPM Version" << endl;
+    cout << "-------------------------------------------" << endl;
 
     if (argc != 4) {
         cout << "Usage:" << endl;
-        cout << "  " << argv[0] << " input.ppm output_folder target_colors" << endl;
+        cout << "  " << argv[0] << " input.ppm output.ppm target_colors" << endl;
         cout << endl;
         cout << "Example:" << endl;
-        cout << "  " << argv[0] << " input.ppm output 8" << endl;
+        cout << "  " << argv[0] << " input.ppm output.ppm 16" << endl;
         return 1;
     }
 
     string inputFilename = argv[1];
-    string outputFolder = argv[2];
+    string outputFilename = argv[2];
     int targetColors = stoi(argv[3]);
 
     if (targetColors <= 0) {
@@ -561,43 +395,62 @@ int main(int argc, char* argv[]) {
     }
 
     cout << "Input file: " << inputFilename << endl;
-    cout << "Output folder: " << outputFolder << endl;
+    cout << "Output file: " << outputFilename << endl;
     cout << "Image size: " << inputImage.width << " x " << inputImage.height << endl;
     cout << "Total pixels: " << inputImage.pixels.size() << endl;
     cout << "Target colors: " << targetColors << endl;
+    cout << endl;
 
-    int leafCount = 0;
-    vector<PaletteColor> originalPalette = buildOriginalPalette(inputImage.pixels, leafCount);
+    auto start = chrono::high_resolution_clock::now();
+
+    Octree octree;
+
+    for (const Pixel& pixel : inputImage.pixels) {
+        octree.insert(pixel);
+    }
+
+    vector<PaletteColor> originalPalette = octree.getPalette();
+    vector<PaletteColor> reducedPalette = reducePalette(originalPalette, targetColors);
+    vector<Pixel> quantizedPixels = quantizePixels(inputImage.pixels, reducedPalette);
+
+    auto end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, milli> elapsed = end - start;
+
+    Image outputImage;
+    outputImage.width = inputImage.width;
+    outputImage.height = inputImage.height;
+    outputImage.maxColorValue = inputImage.maxColorValue;
+    outputImage.pixels = quantizedPixels;
+
+    if (!writePPM(outputFilename, outputImage)) {
+        return 1;
+    }
+
+    int originalUniqueColors = countUniqueColors(inputImage.pixels);
+    int quantizedUniqueColors = countUniqueColors(quantizedPixels);
+
+    double reductionRatio = 0.0;
+    if (originalUniqueColors > 0) {
+        reductionRatio = 100.0 * (1.0 - static_cast<double>(quantizedUniqueColors) / originalUniqueColors);
+    }
 
     cout << "Octree built successfully." << endl;
-    cout << "Octree leaf node count: " << leafCount << endl;
-    cout << "Original unique colors: " << countUniqueColors(inputImage.pixels) << endl;
+    cout << "Octree leaf node count: " << octree.getLeafCount() << endl;
+    cout << "Original unique colors: " << originalUniqueColors << endl;
     cout << "Original palette size: " << originalPalette.size() << endl;
-
-    string mergeOutput = outputFolder + "/output" + to_string(targetColors) + "_merge.ppm";
-    string topKOutput = outputFolder + "/output" + to_string(targetColors) + "_topk.ppm";
-
-    ExperimentResult mergeResult = runAlgorithmExperiment(
-        inputImage,
-        originalPalette,
-        targetColors,
-        "Closest-Pair Merge",
-        mergeOutput
-    );
-
-    ExperimentResult topKResult = runAlgorithmExperiment(
-        inputImage,
-        originalPalette,
-        targetColors,
-        "Frequency Top-K",
-        topKOutput
-    );
-
-    printComparisonTable(mergeResult, topKResult);
-
+    cout << "Reduced palette size: " << reducedPalette.size() << endl;
+    cout << "Quantized unique colors: " << quantizedUniqueColors << endl;
+    cout << "Color reduction ratio: " << reductionRatio << "%" << endl;
+    cout << "Processing time: " << elapsed.count() << " ms" << endl;
     cout << endl;
+
+    cout << "Reduced Palette:" << endl;
+    printPalette(reducedPalette);
+    cout << endl;
+
+    cout << "Output image saved successfully: " << outputFilename << endl;
     cout << "Final verification completed." << endl;
-    cout << "This version compares two palette reduction algorithms using the same Octree-generated palette." << endl;
 
     return 0;
 }
