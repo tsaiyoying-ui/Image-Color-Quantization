@@ -140,7 +140,7 @@ This project compares two palette reduction algorithms:
    Repeatedly finds the two closest palette colors and merges them using weighted average.
 
 2. **Frequency Top-K**  
-   Sorts palette colors by pixel frequency and keeps the most frequent `K` colors.
+   Sorts palette colors by pixel frequency and keeps the most frequent target colors.
 
 Experimental results:
 
