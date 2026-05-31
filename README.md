@@ -82,7 +82,11 @@ This project implements an Image Color Quantization Tool in C++. The program rea
 
 The final version completes the next steps mentioned in the prototype stage, including PPM image input, quantized image output, and performance comparison.
 
-The final implementation is in `src/main.cpp`. Earlier development versions are kept as references in `src/main_prototype.cpp` and `src/main_ppm_basic.cpp`.
+The final implementation is in `src/main.cpp`.
+
+Earlier development versions are kept as references:
+- `src/main_prototype.cpp`
+- `src/main_ppm_basic.cpp`
 
 
 ### How to Run
