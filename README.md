@@ -14,6 +14,10 @@ Compared with these existing tools, this project focuses on manually implementin
 
 The main goal of this project is not to outperform professional image processing software, but to demonstrate how data structures can be applied to a real image processing problem. By implementing the Octree algorithm directly, this project can show the relationship between tree construction, recursive traversal, pruning strategy, and color compression performance.
 
+Another important difference is that this project makes each step of the quantization process observable and adjustable. Instead of treating color reduction as a black-box operation, the implementation allows the construction of the Octree, the distribution of colors in leaf nodes, and the effect of future pruning strategies to be examined directly. This makes the project more suitable for analyzing how different data structure decisions affect the result.
+
+In addition, existing tools are designed mainly for practical image editing or production use, while this project is designed for educational and analytical purposes. The implementation prioritizes clarity of the algorithm, connection to data structure concepts, and opportunities for performance comparison over convenience or professional-level optimization.
+
 
 ### Expected Functions
 Image Parsing: Read and parse RGB data from standard lossless formats such as BMP or PPM.
